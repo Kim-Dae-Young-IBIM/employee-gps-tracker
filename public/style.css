@@ -1,0 +1,137 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+}
+
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 1.5rem;
+}
+
+.stats {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.9rem;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 80px);
+}
+
+.sidebar {
+    width: 300px;
+    background-color: white;
+    border-right: 1px solid #ddd;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.sidebar h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+.employee-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.employee-item {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.employee-item:hover {
+    background-color: #e3f2fd;
+    border-color: #3498db;
+}
+
+.employee-item.active {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.employee-name {
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 0.3rem;
+}
+
+.employee-info {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.employee-item.active .employee-info {
+    color: #ecf0f1;
+}
+
+.map-container {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+.status-online {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #27ae60;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-offline {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #e74c3c;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        height: 200px;
+    }
+}
