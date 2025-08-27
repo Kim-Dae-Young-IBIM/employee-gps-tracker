@@ -218,6 +218,8 @@
                                 });
                             }
                             
+                            console.log('GPS 데이터 수집됨:', locationData);
+                            
                             showLocationInfo(locationData.latitude, locationData.longitude);
                         },
                         (error) => {

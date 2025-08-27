@@ -20,7 +20,8 @@
         <div class="main-content">
             <div class="sidebar">
                 <h3>직원 목록</h3>
-                <button onclick="refreshData()" style="width: 100%; margin-bottom: 10px; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">🔄 새로고침</button>
+                <button onclick="refreshData()" style="width: 100%; margin-bottom: 5px; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">🔄 새로고침</button>
+                <button onclick="clearAllData()" style="width: 100%; margin-bottom: 10px; padding: 8px; background-color: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 데이터 초기화</button>
                 <div id="employeeList" class="employee-list">
                 </div>
             </div>
@@ -170,6 +171,29 @@
             document.getElementById('employeeCount').textContent = `직원 수: ${employees.length}명`;
             document.getElementById('lastUpdate').textContent = 
                 `마지막 업데이트: ${new Date().toLocaleString('ko-KR')}`;
+        }
+
+        function clearAllData() {
+            if (confirm('모든 직원 GPS 데이터를 삭제하시겠습니까?')) {
+                employees = [];
+                
+                // 기존 마커들 제거
+                Object.values(markers).forEach(marker => {
+                    map.removeLayer(marker);
+                });
+                markers = {};
+                
+                updateEmployeeList();
+                updateStats();
+                
+                // 서버에도 삭제 요청 (현재는 서버리스라 제한적)
+                fetch('/api/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(error => console.log('Clear request sent'));
+                
+                alert('데이터가 초기화되었습니다.');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
