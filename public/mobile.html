@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>직원 GPS 전송</title>
+    
+    <!-- PWA 관련 메타태그 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GPS 추적기">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -86,6 +95,9 @@
         <button onclick="sendLocation()">현재 위치 전송</button>
         <button onclick="startAutoSend()">자동 전송 시작</button>
         <button onclick="stopAutoSend()">자동 전송 중지</button>
+        <button id="installBtn" onclick="installPWA()" style="display: none; background-color: #27ae60;">📱 앱으로 설치</button>
+        <button onclick="startBackgroundGPS()">백그라운드 GPS 시작</button>
+        <button onclick="stopBackgroundGPS()">백그라운드 GPS 중지</button>
         
         <div id="status"></div>
         <div id="locationInfo"></div>
@@ -93,6 +105,84 @@
 
     <script>
         let autoSendInterval;
+        let deferredPrompt;
+        
+        // PWA 설치 관련
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'block';
+        });
+        
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW 등록 성공:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('SW 등록 실패:', error);
+                    });
+            });
+            
+            // Service Worker 메시지 수신
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data.type === 'GPS_TRACKING_STARTED') {
+                    showStatus('백그라운드 GPS 추적 시작됨!', 'success');
+                } else if (event.data.type === 'GPS_TRACKING_STOPPED') {
+                    showStatus('백그라운드 GPS 추적 중지됨!', 'success');
+                }
+            });
+        }
+        
+        // PWA 설치 함수
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showStatus('앱이 설치되었습니다!', 'success');
+                    } else {
+                        showStatus('앱 설치가 취소되었습니다.', 'error');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installBtn').style.display = 'none';
+                });
+            }
+        }
+        
+        // 백그라운드 GPS 시작
+        function startBackgroundGPS() {
+            const employeeId = document.getElementById('employeeId').value;
+            const employeeName = document.getElementById('employeeName').value;
+            
+            if (!employeeId || !employeeName) {
+                showStatus('직원 ID와 이름을 입력해주세요!', 'error');
+                return;
+            }
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.active.postMessage({
+                        type: 'START_GPS_TRACKING',
+                        employeeId,
+                        employeeName
+                    });
+                });
+            }
+        }
+        
+        // 백그라운드 GPS 중지
+        function stopBackgroundGPS() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.active.postMessage({
+                        type: 'STOP_GPS_TRACKING'
+                    });
+                });
+            }
+        }
         
         function sendLocation() {
             const employeeId = document.getElementById('employeeId').value;
