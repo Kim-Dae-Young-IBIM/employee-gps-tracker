@@ -132,6 +132,10 @@
                     showStatus('백그라운드 GPS 추적 시작됨!', 'success');
                 } else if (event.data.type === 'GPS_TRACKING_STOPPED') {
                     showStatus('백그라운드 GPS 추적 중지됨!', 'success');
+                } else if (event.data.type === 'REQUEST_GPS_START') {
+                    startMainThreadGPS(event.data.employeeId, event.data.employeeName);
+                } else if (event.data.type === 'REQUEST_GPS_STOP') {
+                    stopMainThreadGPS();
                 }
             });
         }
@@ -181,6 +185,56 @@
                         type: 'STOP_GPS_TRACKING'
                     });
                 });
+            }
+        }
+        
+        let mainThreadGPSInterval;
+        
+        // 메인 스레드에서 GPS 추적 시작
+        function startMainThreadGPS(employeeId, employeeName) {
+            if (mainThreadGPSInterval) {
+                clearInterval(mainThreadGPSInterval);
+            }
+            
+            mainThreadGPSInterval = setInterval(() => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const locationData = {
+                                employeeId,
+                                employeeName,
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                timestamp: new Date().toISOString()
+                            };
+                            
+                            // Service Worker로 위치 데이터 전송
+                            if ('serviceWorker' in navigator) {
+                                navigator.serviceWorker.ready.then((registration) => {
+                                    registration.active.postMessage({
+                                        type: 'LOCATION_DATA',
+                                        locationData: locationData
+                                    });
+                                });
+                            }
+                            
+                            showLocationInfo(locationData.latitude, locationData.longitude);
+                        },
+                        (error) => {
+                            console.error('GPS 오류:', error);
+                            showStatus('GPS 오류: ' + error.message, 'error');
+                        },
+                        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+                    );
+                }
+            }, 30000); // 30초마다
+        }
+        
+        // 메인 스레드 GPS 중지
+        function stopMainThreadGPS() {
+            if (mainThreadGPSInterval) {
+                clearInterval(mainThreadGPSInterval);
+                mainThreadGPSInterval = null;
             }
         }
         

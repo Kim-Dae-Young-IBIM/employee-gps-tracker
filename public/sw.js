@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gps-tracker-v1';
+const CACHE_NAME = 'gps-tracker-v2';
 const urlsToCache = [
   '/',
   '/mobile.html',
@@ -14,6 +14,11 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', event => {
@@ -35,36 +40,28 @@ self.addEventListener('sync', event => {
   }
 });
 
-let locationInterval;
+let isTracking = false;
+let currentEmployee = null;
 
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'START_GPS_TRACKING') {
     const { employeeId, employeeName } = event.data;
     
-    locationInterval = setInterval(async () => {
-      try {
-        if ('geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            position => {
-              const locationData = {
-                employeeId,
-                employeeName,
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                timestamp: new Date().toISOString()
-              };
-              
-              sendLocationToServer(locationData);
-            },
-            error => console.error('GPS Error:', error),
-            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
-          );
-        }
-      } catch (error) {
-        console.error('Background GPS Error:', error);
-      }
-    }, 30000); // 30초마다
+    isTracking = true;
+    currentEmployee = { employeeId, employeeName };
     
+    // 메인 스레드에 GPS 추적 시작 요청
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'REQUEST_GPS_START',
+          employeeId,
+          employeeName
+        });
+      });
+    });
+    
+    // 응답 메시지
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
         client.postMessage({
@@ -76,11 +73,19 @@ self.addEventListener('message', event => {
   }
   
   if (event.data && event.data.type === 'STOP_GPS_TRACKING') {
-    if (locationInterval) {
-      clearInterval(locationInterval);
-      locationInterval = null;
-    }
+    isTracking = false;
+    currentEmployee = null;
     
+    // 메인 스레드에 GPS 추적 중지 요청
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'REQUEST_GPS_STOP'
+        });
+      });
+    });
+    
+    // 응답 메시지
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
         client.postMessage({
@@ -89,6 +94,12 @@ self.addEventListener('message', event => {
         });
       });
     });
+  }
+  
+  // 메인 스레드에서 GPS 위치 데이터 수신
+  if (event.data && event.data.type === 'LOCATION_DATA' && isTracking) {
+    const locationData = event.data.locationData;
+    sendLocationToServer(locationData);
   }
 });
 
@@ -106,11 +117,11 @@ async function sendLocationToServer(locationData) {
       console.log('위치 전송 성공:', locationData);
     } else {
       console.error('위치 전송 실패:', response.status);
-      storePendingLocation(locationData);
+      await storePendingLocation(locationData);
     }
   } catch (error) {
     console.error('네트워크 오류:', error);
-    storePendingLocation(locationData);
+    await storePendingLocation(locationData);
   }
 }
 
