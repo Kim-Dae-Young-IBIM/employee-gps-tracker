@@ -93,6 +93,7 @@
         </div>
         
         <button onclick="sendLocation()">현재 위치 전송</button>
+        <button onclick="sendLocationDirect()" style="background-color: #27ae60;">🚀 즉시 전송 (테스트)</button>
         <button onclick="startAutoSend()">자동 전송 시작</button>
         <button onclick="stopAutoSend()">자동 전송 중지</button>
         <button id="installBtn" onclick="installPWA()" style="display: none; background-color: #27ae60;">📱 앱으로 설치</button>
@@ -136,6 +137,9 @@
                     startMainThreadGPS(event.data.employeeId, event.data.employeeName);
                 } else if (event.data.type === 'REQUEST_GPS_STOP') {
                     stopMainThreadGPS();
+                } else if (event.data.type === 'LOCATION_SENT_SUCCESS') {
+                    console.log('📍 Service Worker 위치 전송 성공 확인:', event.data.data);
+                    showStatus('백그라운드에서 위치가 전송되었습니다!', 'success');
                 }
             });
         }
@@ -240,6 +244,68 @@
             }
         }
         
+        // 즉시 전송 (디버깅용)
+        function sendLocationDirect() {
+            const employeeId = document.getElementById('employeeId').value;
+            const employeeName = document.getElementById('employeeName').value;
+            
+            if (!employeeId || !employeeName) {
+                showStatus('직원 ID와 이름을 입력해주세요!', 'error');
+                return;
+            }
+            
+            showStatus('GPS 위치 찾는 중...', 'success');
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        
+                        const locationData = {
+                            employeeId,
+                            employeeName,
+                            latitude,
+                            longitude,
+                            timestamp: new Date().toISOString(),
+                            source: 'direct_mobile' // 모바일 직접 전송 표시
+                        };
+                        
+                        console.log('🔍 모바일에서 GPS 데이터 수집:', locationData);
+                        
+                        // API로 직접 전송
+                        fetch('/api/location', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(locationData)
+                        })
+                        .then(response => {
+                            console.log('📡 API 응답 상태:', response.status);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('✅ API 응답 데이터:', data);
+                            showStatus('위치가 성공적으로 전송되었습니다!', 'success');
+                            showLocationInfo(latitude, longitude);
+                        })
+                        .catch(error => {
+                            console.error('❌ API 전송 오류:', error);
+                            showStatus('전송 실패: ' + error.message, 'error');
+                        });
+                    },
+                    (error) => {
+                        console.error('❌ GPS 오류:', error);
+                        showStatus('위치 정보를 가져올 수 없습니다: ' + error.message, 'error');
+                    },
+                    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+                );
+            } else {
+                showStatus('이 브라우저는 위치 서비스를 지원하지 않습니다.', 'error');
+            }
+        }
+
         function sendLocation() {
             const employeeId = document.getElementById('employeeId').value;
             const employeeName = document.getElementById('employeeName').value;

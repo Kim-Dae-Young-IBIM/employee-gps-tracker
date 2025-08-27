@@ -105,6 +105,10 @@ self.addEventListener('message', event => {
 
 async function sendLocationToServer(locationData) {
   try {
+    locationData.source = 'service_worker'; // Service Worker 출처 표시
+    
+    console.log('🚀 Service Worker에서 API 전송 시도:', locationData);
+    
     const response = await fetch('/api/location', {
       method: 'POST',
       headers: {
@@ -113,14 +117,27 @@ async function sendLocationToServer(locationData) {
       body: JSON.stringify(locationData)
     });
     
+    console.log('📡 Service Worker API 응답 상태:', response.status);
+    
     if (response.ok) {
-      console.log('위치 전송 성공:', locationData);
+      const responseData = await response.json();
+      console.log('✅ Service Worker 위치 전송 성공:', responseData);
+      
+      // 클라이언트에 성공 알림
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'LOCATION_SENT_SUCCESS',
+            data: responseData
+          });
+        });
+      });
     } else {
-      console.error('위치 전송 실패:', response.status);
+      console.error('❌ Service Worker 위치 전송 실패:', response.status);
       await storePendingLocation(locationData);
     }
   } catch (error) {
-    console.error('네트워크 오류:', error);
+    console.error('❌ Service Worker 네트워크 오류:', error);
     await storePendingLocation(locationData);
   }
 }
