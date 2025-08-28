@@ -3,6 +3,7 @@ let globalEmployees = [];
 let isCleared = false;
 
 export function getEmployees() {
+  console.log('📋 직원 데이터 조회 - isCleared:', isCleared, '직원 수:', globalEmployees.length);
   if (isCleared) {
     return [];
   }
@@ -27,6 +28,9 @@ export function addOrUpdateEmployee(employee) {
   } else {
     globalEmployees.push(employee);
   }
+  
+  console.log('📍 직원 데이터 추가/업데이트:', employee);
+  console.log('📊 현재 전체 직원 수:', globalEmployees.length);
 }
 
 export function clearAllEmployees() {
