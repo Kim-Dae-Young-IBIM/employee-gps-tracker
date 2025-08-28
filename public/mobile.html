@@ -129,17 +129,20 @@
             
             // Service Worker 메시지 수신
             navigator.serviceWorker.addEventListener('message', event => {
+                console.log('📨 Service Worker 메시지 수신:', event.data);
                 if (event.data.type === 'GPS_TRACKING_STARTED') {
-                    showStatus('백그라운드 GPS 추적 시작됨!', 'success');
+                    showStatus('✅ 백그라운드 GPS 추적 시작됨!', 'success');
                 } else if (event.data.type === 'GPS_TRACKING_STOPPED') {
-                    showStatus('백그라운드 GPS 추적 중지됨!', 'success');
+                    showStatus('✅ 백그라운드 GPS 추적 중지됨!', 'success');
                 } else if (event.data.type === 'REQUEST_GPS_START') {
+                    console.log('🎯 메인 스레드 GPS 시작 요청:', event.data);
                     startMainThreadGPS(event.data.employeeId, event.data.employeeName);
                 } else if (event.data.type === 'REQUEST_GPS_STOP') {
+                    console.log('🛑 메인 스레드 GPS 중지 요청');
                     stopMainThreadGPS();
                 } else if (event.data.type === 'LOCATION_SENT_SUCCESS') {
                     console.log('📍 Service Worker 위치 전송 성공 확인:', event.data.data);
-                    showStatus('백그라운드에서 위치가 전송되었습니다!', 'success');
+                    showStatus('📍 백그라운드에서 위치가 전송되었습니다!', 'success');
                 }
             });
         }
@@ -170,25 +173,53 @@
                 return;
             }
             
+            console.log('🚀 백그라운드 GPS 시작 요청:', { employeeId, employeeName });
+            
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((registration) => {
-                    registration.active.postMessage({
-                        type: 'START_GPS_TRACKING',
-                        employeeId,
-                        employeeName
-                    });
+                    console.log('📡 Service Worker 준비됨, 메시지 전송 중...');
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'START_GPS_TRACKING',
+                            employeeId,
+                            employeeName
+                        });
+                        console.log('📤 Service Worker에 START_GPS_TRACKING 메시지 전송 완료');
+                    } else {
+                        console.error('❌ Service Worker가 활성화되지 않음');
+                        showStatus('Service Worker가 준비되지 않았습니다.', 'error');
+                    }
+                }).catch(error => {
+                    console.error('❌ Service Worker 준비 실패:', error);
+                    showStatus('Service Worker 준비 실패: ' + error.message, 'error');
                 });
+            } else {
+                showStatus('이 브라우저는 Service Worker를 지원하지 않습니다.', 'error');
             }
         }
         
         // 백그라운드 GPS 중지
         function stopBackgroundGPS() {
+            console.log('🛑 백그라운드 GPS 중지 요청');
+            
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((registration) => {
-                    registration.active.postMessage({
-                        type: 'STOP_GPS_TRACKING'
-                    });
+                    console.log('📡 Service Worker 준비됨, 중지 메시지 전송 중...');
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'STOP_GPS_TRACKING'
+                        });
+                        console.log('📤 Service Worker에 STOP_GPS_TRACKING 메시지 전송 완료');
+                    } else {
+                        console.error('❌ Service Worker가 활성화되지 않음');
+                        showStatus('Service Worker가 준비되지 않았습니다.', 'error');
+                    }
+                }).catch(error => {
+                    console.error('❌ Service Worker 준비 실패:', error);
+                    showStatus('Service Worker 준비 실패: ' + error.message, 'error');
                 });
+            } else {
+                showStatus('이 브라우저는 Service Worker를 지원하지 않습니다.', 'error');
             }
         }
         
@@ -196,51 +227,83 @@
         
         // 메인 스레드에서 GPS 추적 시작
         function startMainThreadGPS(employeeId, employeeName) {
+            console.log('🎯 메인 스레드 GPS 시작:', { employeeId, employeeName });
+            
             if (mainThreadGPSInterval) {
+                console.log('⚠️ 기존 GPS 인터벌 정리 중...');
                 clearInterval(mainThreadGPSInterval);
             }
             
+            // 즉시 한 번 실행
+            getCurrentLocationAndSend(employeeId, employeeName);
+            
+            // 30초마다 반복 실행
             mainThreadGPSInterval = setInterval(() => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const locationData = {
-                                employeeId,
-                                employeeName,
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude,
-                                timestamp: new Date().toISOString()
-                            };
-                            
-                            // Service Worker로 위치 데이터 전송
-                            if ('serviceWorker' in navigator) {
-                                navigator.serviceWorker.ready.then((registration) => {
+                getCurrentLocationAndSend(employeeId, employeeName);
+            }, 30000);
+            
+            console.log('✅ 메인 스레드 GPS 인터벌 설정 완료 (30초 간격)');
+        }
+        
+        // GPS 위치 획득 및 전송 함수
+        function getCurrentLocationAndSend(employeeId, employeeName) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const locationData = {
+                            employeeId,
+                            employeeName,
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            timestamp: new Date().toISOString(),
+                            source: 'background_gps' // 백그라운드 GPS 표시
+                        };
+                        
+                        console.log('📍 백그라운드 GPS 데이터 수집됨:', locationData);
+                        
+                        // Service Worker로 위치 데이터 전송
+                        if ('serviceWorker' in navigator) {
+                            navigator.serviceWorker.ready.then((registration) => {
+                                if (registration.active) {
                                     registration.active.postMessage({
                                         type: 'LOCATION_DATA',
                                         locationData: locationData
                                     });
-                                });
-                            }
-                            
-                            console.log('GPS 데이터 수집됨:', locationData);
-                            
-                            showLocationInfo(locationData.latitude, locationData.longitude);
-                        },
-                        (error) => {
-                            console.error('GPS 오류:', error);
-                            showStatus('GPS 오류: ' + error.message, 'error');
-                        },
-                        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
-                    );
-                }
-            }, 30000); // 30초마다
+                                    console.log('📤 Service Worker로 위치 데이터 전송 완료');
+                                }
+                            });
+                        }
+                        
+                        // UI 업데이트
+                        showLocationInfo(locationData.latitude, locationData.longitude);
+                        showStatus(`📍 백그라운드 GPS 전송: ${employeeName}`, 'success');
+                    },
+                    (error) => {
+                        console.error('❌ 백그라운드 GPS 오류:', error);
+                        showStatus('백그라운드 GPS 오류: ' + error.message, 'error');
+                    },
+                    { 
+                        enableHighAccuracy: true, 
+                        maximumAge: 30000, 
+                        timeout: 15000 
+                    }
+                );
+            } else {
+                console.error('❌ Geolocation API 지원 안됨');
+                showStatus('이 브라우저는 위치 서비스를 지원하지 않습니다.', 'error');
+            }
         }
         
         // 메인 스레드 GPS 중지
         function stopMainThreadGPS() {
+            console.log('🛑 메인 스레드 GPS 중지');
             if (mainThreadGPSInterval) {
                 clearInterval(mainThreadGPSInterval);
                 mainThreadGPSInterval = null;
+                console.log('✅ GPS 인터벌 정리 완료');
+                showStatus('백그라운드 GPS 추적이 중지되었습니다.', 'success');
+            } else {
+                console.log('⚠️ 중지할 GPS 인터벌이 없음');
             }
         }
         
