@@ -185,6 +185,15 @@
                             employeeName
                         });
                         console.log('📤 Service Worker에 START_GPS_TRACKING 메시지 전송 완료');
+                        
+                        // Fallback: 3초 후 Service Worker 응답이 없으면 직접 GPS 시작
+                        setTimeout(() => {
+                            if (!mainThreadGPSInterval) {
+                                console.log('⚠️ Service Worker 응답 없음 - 직접 GPS 시작');
+                                startMainThreadGPS(employeeId, employeeName);
+                                showStatus('✅ 백그라운드 GPS 추적 시작됨! (직접 모드)', 'success');
+                            }
+                        }, 3000);
                     } else {
                         console.error('❌ Service Worker가 활성화되지 않음');
                         showStatus('Service Worker가 준비되지 않았습니다.', 'error');

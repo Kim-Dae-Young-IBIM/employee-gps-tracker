@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gps-tracker-v2';
+const CACHE_NAME = 'gps-tracker-v3';
 const urlsToCache = [
   '/',
   '/mobile.html',
@@ -44,15 +44,20 @@ let isTracking = false;
 let currentEmployee = null;
 
 self.addEventListener('message', event => {
+  console.log('🔔 Service Worker 메시지 수신:', event.data);
+  
   if (event.data && event.data.type === 'START_GPS_TRACKING') {
     const { employeeId, employeeName } = event.data;
+    console.log('🚀 Service Worker GPS 추적 시작:', { employeeId, employeeName });
     
     isTracking = true;
     currentEmployee = { employeeId, employeeName };
     
     // 메인 스레드에 GPS 추적 시작 요청
     self.clients.matchAll().then(clients => {
+      console.log('👥 연결된 클라이언트 수:', clients.length);
       clients.forEach(client => {
+        console.log('📤 클라이언트에 REQUEST_GPS_START 전송');
         client.postMessage({
           type: 'REQUEST_GPS_START',
           employeeId,
@@ -64,6 +69,7 @@ self.addEventListener('message', event => {
     // 응답 메시지
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
+        console.log('📤 클라이언트에 GPS_TRACKING_STARTED 전송');
         client.postMessage({
           type: 'GPS_TRACKING_STARTED',
           message: '백그라운드 GPS 추적이 시작되었습니다.'
@@ -73,12 +79,15 @@ self.addEventListener('message', event => {
   }
   
   if (event.data && event.data.type === 'STOP_GPS_TRACKING') {
+    console.log('🛑 Service Worker GPS 추적 중지');
     isTracking = false;
     currentEmployee = null;
     
     // 메인 스레드에 GPS 추적 중지 요청
     self.clients.matchAll().then(clients => {
+      console.log('👥 연결된 클라이언트 수:', clients.length);
       clients.forEach(client => {
+        console.log('📤 클라이언트에 REQUEST_GPS_STOP 전송');
         client.postMessage({
           type: 'REQUEST_GPS_STOP'
         });
@@ -88,6 +97,7 @@ self.addEventListener('message', event => {
     // 응답 메시지
     self.clients.matchAll().then(clients => {
       clients.forEach(client => {
+        console.log('📤 클라이언트에 GPS_TRACKING_STOPPED 전송');
         client.postMessage({
           type: 'GPS_TRACKING_STOPPED',
           message: '백그라운드 GPS 추적이 중지되었습니다.'
@@ -99,7 +109,10 @@ self.addEventListener('message', event => {
   // 메인 스레드에서 GPS 위치 데이터 수신
   if (event.data && event.data.type === 'LOCATION_DATA' && isTracking) {
     const locationData = event.data.locationData;
+    console.log('📍 Service Worker 위치 데이터 수신:', locationData);
     sendLocationToServer(locationData);
+  } else if (event.data && event.data.type === 'LOCATION_DATA' && !isTracking) {
+    console.log('⚠️ GPS 추적이 비활성화 상태에서 위치 데이터 수신 - 무시됨');
   }
 });
 
