@@ -20,7 +20,7 @@
         <div class="main-content">
             <div class="sidebar">
                 <h3>직원 목록</h3>
-                <button onclick="refreshData()" style="width: 100%; margin-bottom: 5px; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">🔄 새로고침</button>
+                <button onclick="manualRefresh()" style="width: 100%; margin-bottom: 5px; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">🔄 새로고침</button>
                 <button onclick="clearAllData()" style="width: 100%; margin-bottom: 10px; padding: 8px; background-color: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ 데이터 초기화</button>
                 <div id="employeeList" class="employee-list">
                 </div>
@@ -53,9 +53,22 @@
 
         function refreshData() {
             console.log('🔄 데이터 새로고침 시작...');
-            fetch('/api/location')
+            
+            // Cache busting을 위해 timestamp 추가
+            const timestamp = new Date().getTime();
+            const url = `/api/location?t=${timestamp}`;
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
                 .then(response => {
                     console.log('📡 API 응답 상태:', response.status, response.statusText);
+                    console.log('📡 요청 URL:', url);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
@@ -64,22 +77,35 @@
                 .then(data => {
                     console.log('📋 대시보드에서 받은 데이터:', data);
                     console.log('📊 데이터 개수:', Array.isArray(data) ? data.length : 'Not array');
+                    console.log('📅 현재 시간:', new Date().toLocaleString('ko-KR'));
                     
                     if (Array.isArray(data) && data.length > 0) {
                         employees = data;
+                        console.log('👥 업데이트될 직원 목록:', employees);
                         updateEmployeeList();
                         updateMarkers();
                         updateStats();
                         console.log('✅ 실제 직원 데이터로 업데이트 완료');
                     } else {
                         console.log('⚠️ 빈 데이터 또는 잘못된 형식');
-                        showDemoData();
+                        employees = [];
+                        updateEmployeeList();
+                        updateMarkers();
+                        updateStats();
+                        console.log('📭 빈 데이터로 UI 업데이트');
                     }
                 })
                 .catch(error => {
                     console.error('❌ API 호출 오류:', error);
+                    console.log('🎭 오류로 인해 데모 데이터 표시');
                     showDemoData();
                 });
+        }
+        
+        // 수동 새로고침 함수
+        function manualRefresh() {
+            console.log('👆 수동 새로고침 버튼 클릭됨');
+            refreshData();
         }
         
         function showDemoData() {
@@ -106,10 +132,21 @@
         }
 
         function updateEmployeeList() {
+            console.log('📝 직원 목록 UI 업데이트 시작');
+            console.log('👥 업데이트할 직원 수:', employees.length);
+            
             const employeeList = document.getElementById('employeeList');
             employeeList.innerHTML = '';
             
-            employees.forEach(employee => {
+            if (employees.length === 0) {
+                console.log('📭 직원 목록이 비어있음');
+                employeeList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">직원 데이터가 없습니다.</div>';
+                return;
+            }
+            
+            employees.forEach((employee, index) => {
+                console.log(`👤 직원 ${index + 1}:`, employee);
+                
                 const employeeItem = document.createElement('div');
                 employeeItem.className = 'employee-item';
                 employeeItem.innerHTML = `
@@ -130,6 +167,8 @@
                 
                 employeeList.appendChild(employeeItem);
             });
+            
+            console.log('✅ 직원 목록 UI 업데이트 완료');
         }
 
         function selectEmployee(employee, element) {
