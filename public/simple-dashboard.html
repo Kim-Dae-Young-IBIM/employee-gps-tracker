@@ -204,23 +204,25 @@
                 updateEmployeeList();
                 updateStats();
                 
-                // 서버에서도 실제로 데이터 삭제
-                fetch('/api/clear', {
-                    method: 'POST',
+                // 서버에서도 실제로 데이터 삭제 - location API DELETE 사용
+                fetch('/api/location', {
+                    method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' }
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log('서버 데이터 삭제 완료:', data);
+                    console.log('🗑️ 서버 데이터 삭제 완료:', data);
                     if (data.success) {
-                        alert('데이터가 초기화되었습니다.');
+                        alert('✅ 데이터가 완전히 초기화되었습니다.');
+                        // 즉시 새로고침하여 초기화 확인
+                        setTimeout(() => refreshData(), 500);
                     } else {
-                        alert('데이터가 초기화되었습니다. (부분적)');
+                        alert('⚠️ 데이터 초기화 중 문제가 발생했습니다.');
                     }
                 })
                 .catch(error => {
-                    console.error('서버 데이터 삭제 실패:', error);
-                    alert('데이터가 초기화되었습니다. (클라이언트 측)');
+                    console.error('❌ 서버 데이터 삭제 실패:', error);
+                    alert('❌ 서버 데이터 삭제에 실패했습니다: ' + error.message);
                 });
             }
         }

@@ -4,11 +4,18 @@ import { getEmployees, addOrUpdateEmployee, clearAllEmployees } from './data-sto
 // Serverless 환경에서 메모리 공유를 위한 글로벌 저장소
 let serverlessEmployees = [];
 let isInitialized = false;
+let lastClearTime = 0;
 
 function initializeData() {
   if (!isInitialized) {
     try {
-      serverlessEmployees = getEmployees();
+      // 데이터 스토어에서 초기화 상태 확인
+      const cleared = getEmployees();
+      if (cleared && cleared.length === 0) {
+        serverlessEmployees = [];
+      } else {
+        serverlessEmployees = cleared || [];
+      }
       isInitialized = true;
     } catch (error) {
       console.log('데이터 초기화 실패, 빈 배열로 시작');
@@ -98,11 +105,17 @@ export default function handler(req, res) {
 
   if (req.method === 'DELETE') {
     try {
+      // 서버리스 저장소도 초기화
+      serverlessEmployees = [];
+      isInitialized = false;
+      lastClearTime = Date.now();
+      
       clearAllEmployees();
-      console.log('모든 직원 데이터 삭제됨');
+      console.log('🗑️ 모든 직원 데이터 삭제됨 (서버리스 + 전역)');
       return res.status(200).json({ 
         success: true, 
-        message: 'All employee data cleared successfully' 
+        message: 'All employee data cleared successfully',
+        timestamp: lastClearTime
       });
     } catch (error) {
       console.error('DELETE 오류:', error);
