@@ -15,7 +15,10 @@
       "Bash(git log:*)",
       "Bash(gh api:*)",
       "Bash(timeout:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(cmd /c:*)",
+      "Bash(wmic process where:*)",
+      "Bash(set PORT=3002)"
     ],
     "deny": [],
     "ask": []

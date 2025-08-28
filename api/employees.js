@@ -14,6 +14,7 @@ export default function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const employees = getEmployees();
+      console.log('📋 employees.js에서 직원 데이터 조회:', employees.length, '명');
       return res.status(200).json(employees);
     } catch (error) {
       console.error('GET 오류:', error);

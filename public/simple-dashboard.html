@@ -52,39 +52,57 @@
         }
 
         function refreshData() {
-            fetch('/api/employees')
-                .then(response => response.json())
-                .then(data => {
-                    employees = data;
-                    updateEmployeeList();
-                    updateMarkers();
-                    updateStats();
+            console.log('🔄 데이터 새로고침 시작...');
+            fetch('/api/location')
+                .then(response => {
+                    console.log('📡 API 응답 상태:', response.status, response.statusText);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
                 })
-                .catch(error => {
-                    console.error('Error loading employees:', error);
-                    // 샘플 데이터 표시 (테스트용)
-                    if (employees.length === 0) {
-                        employees = [
-                            {
-                                employeeId: 'DEMO01',
-                                employeeName: '데모 직원 1',
-                                latitude: 37.5665,
-                                longitude: 126.9780,
-                                timestamp: new Date().toISOString()
-                            },
-                            {
-                                employeeId: 'DEMO02',
-                                employeeName: '데모 직원 2',
-                                latitude: 37.5685,
-                                longitude: 126.9800,
-                                timestamp: new Date().toISOString()
-                            }
-                        ];
+                .then(data => {
+                    console.log('📋 대시보드에서 받은 데이터:', data);
+                    console.log('📊 데이터 개수:', Array.isArray(data) ? data.length : 'Not array');
+                    
+                    if (Array.isArray(data) && data.length > 0) {
+                        employees = data;
                         updateEmployeeList();
                         updateMarkers();
                         updateStats();
+                        console.log('✅ 실제 직원 데이터로 업데이트 완료');
+                    } else {
+                        console.log('⚠️ 빈 데이터 또는 잘못된 형식');
+                        showDemoData();
                     }
+                })
+                .catch(error => {
+                    console.error('❌ API 호출 오류:', error);
+                    showDemoData();
                 });
+        }
+        
+        function showDemoData() {
+            console.log('🎭 데모 데이터 표시');
+            employees = [
+                {
+                    employeeId: 'DEMO01',
+                    employeeName: '데모 직원 1 (API 오류)',
+                    latitude: 37.5665,
+                    longitude: 126.9780,
+                    timestamp: new Date().toISOString()
+                },
+                {
+                    employeeId: 'DEMO02', 
+                    employeeName: '데모 직원 2 (API 오류)',
+                    latitude: 37.5685,
+                    longitude: 126.9800,
+                    timestamp: new Date().toISOString()
+                }
+            ];
+            updateEmployeeList();
+            updateMarkers();
+            updateStats();
         }
 
         function updateEmployeeList() {
