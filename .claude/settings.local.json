@@ -11,7 +11,11 @@
       "Bash(npm run dev:*)",
       "Bash(taskkill:*)",
       "Bash(gh repo view:*)",
-      "WebFetch(domain:employee-gps-tracker.vercel.app)"
+      "WebFetch(domain:employee-gps-tracker.vercel.app)",
+      "Bash(git log:*)",
+      "Bash(gh api:*)",
+      "Bash(timeout:*)",
+      "Bash(nslookup:*)"
     ],
     "deny": [],
     "ask": []
