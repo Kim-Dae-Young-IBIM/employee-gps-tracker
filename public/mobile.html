@@ -107,6 +107,10 @@
     <script>
         let autoSendInterval;
         let deferredPrompt;
+        let wakeLock = null;
+        let isBackgroundGPSActive = false;
+        let audioContext = null;
+        let silentAudio = null;
         
         // PWA 설치 관련
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -114,6 +118,65 @@
             deferredPrompt = e;
             document.getElementById('installBtn').style.display = 'block';
         });
+        
+        // 페이지 가시성 변화 감지 (백그라운드 처리)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isBackgroundGPSActive) {
+                console.log('📱 페이지가 백그라운드로 이동 - GPS 유지 시도');
+                maintainBackgroundGPS();
+            } else if (!document.hidden && isBackgroundGPSActive) {
+                console.log('📱 페이지가 포그라운드로 복귀 - GPS 계속');
+            }
+        });
+        
+        // Wake Lock API를 사용하여 화면이 꺼지지 않도록 방지
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('🔒 Wake Lock 활성화됨 - 화면 꺼짐 방지');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        console.log('🔓 Wake Lock 해제됨');
+                        wakeLock = null;
+                    });
+                    
+                    return true;
+                } else {
+                    console.log('⚠️ Wake Lock API 지원 안됨');
+                    return false;
+                }
+            } catch (err) {
+                console.error('❌ Wake Lock 요청 실패:', err);
+                return false;
+            }
+        }
+        
+        // Wake Lock 해제
+        function releaseWakeLock() {
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('🔓 Wake Lock 수동 해제');
+            }
+        }
+        
+        // 백그라운드 GPS 유지 함수
+        function maintainBackgroundGPS() {
+            console.log('🎯 백그라운드 GPS 유지 작업 실행');
+            
+            // Service Worker에 백그라운드 상태 알림
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'BACKGROUND_STATE_CHANGED',
+                            isBackground: true
+                        });
+                    }
+                });
+            }
+        }
         
         // Service Worker 등록
         if ('serviceWorker' in navigator) {
@@ -164,7 +227,7 @@
         }
         
         // 백그라운드 GPS 시작
-        function startBackgroundGPS() {
+        async function startBackgroundGPS() {
             const employeeId = document.getElementById('employeeId').value;
             const employeeName = document.getElementById('employeeName').value;
             
@@ -174,6 +237,24 @@
             }
             
             console.log('🚀 백그라운드 GPS 시작 요청:', { employeeId, employeeName });
+            
+            // 백그라운드 GPS 활성 상태로 설정
+            isBackgroundGPSActive = true;
+            
+            // Wake Lock 요청 (화면 꺼짐 방지)
+            const wakeLockGranted = await requestWakeLock();
+            if (wakeLockGranted) {
+                showStatus('🔒 화면 꺼짐 방지 활성화됨', 'success');
+            }
+            
+            // Silent Audio 시작 (백그라운드 실행 유지)
+            const silentAudioStarted = await startSilentAudio();
+            if (silentAudioStarted) {
+                showStatus('🔇 백그라운드 실행 최적화됨', 'success');
+            }
+            
+            // 권한 요청
+            await requestNotificationPermission();
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((registration) => {
@@ -207,9 +288,70 @@
             }
         }
         
+        // 알림 권한 요청
+        async function requestNotificationPermission() {
+            if ('Notification' in window) {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    console.log('📢 알림 권한 허용됨');
+                    return true;
+                } else {
+                    console.log('📢 알림 권한 거부됨');
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        // 백그라운드 실행 유지를 위한 Silent Audio (브라우저 트릭)
+        async function startSilentAudio() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // 무음 오디오 생성
+                const buffer = audioContext.createBuffer(1, 1, 22050);
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioContext.destination);
+                source.loop = true;
+                source.start();
+                
+                silentAudio = source;
+                console.log('🔇 Silent Audio 시작 - 백그라운드 실행 유지');
+                return true;
+            } catch (error) {
+                console.error('❌ Silent Audio 시작 실패:', error);
+                return false;
+            }
+        }
+        
+        // Silent Audio 중지
+        function stopSilentAudio() {
+            if (silentAudio) {
+                silentAudio.stop();
+                silentAudio = null;
+                console.log('🔇 Silent Audio 중지');
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+        }
+        
         // 백그라운드 GPS 중지
         function stopBackgroundGPS() {
             console.log('🛑 백그라운드 GPS 중지 요청');
+            
+            // 백그라운드 GPS 비활성화
+            isBackgroundGPSActive = false;
+            
+            // Wake Lock 해제
+            releaseWakeLock();
+            
+            // Silent Audio 중지
+            stopSilentAudio();
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((registration) => {

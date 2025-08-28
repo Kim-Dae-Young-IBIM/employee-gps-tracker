@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gps-tracker-v3';
+const CACHE_NAME = 'gps-tracker-v4';
 const urlsToCache = [
   '/',
   '/mobile.html',
@@ -113,6 +113,25 @@ self.addEventListener('message', event => {
     sendLocationToServer(locationData);
   } else if (event.data && event.data.type === 'LOCATION_DATA' && !isTracking) {
     console.log('⚠️ GPS 추적이 비활성화 상태에서 위치 데이터 수신 - 무시됨');
+  }
+  
+  // 백그라운드 상태 변화 처리
+  if (event.data && event.data.type === 'BACKGROUND_STATE_CHANGED') {
+    console.log('📱 백그라운드 상태 변화:', event.data.isBackground);
+    
+    if (event.data.isBackground && isTracking) {
+      console.log('🎯 백그라운드에서 GPS 추적 유지 중...');
+      
+      // 백그라운드에서 알림으로 사용자에게 상태 알림
+      if ('Notification' in self && Notification.permission === 'granted') {
+        new Notification('GPS 추적 활성', {
+          body: `${currentEmployee?.employeeName || '직원'}의 위치가 백그라운드에서 추적 중입니다.`,
+          icon: '/icon.svg',
+          badge: '/icon.svg',
+          silent: true
+        });
+      }
+    }
   }
 });
 
