@@ -1,30 +1,5 @@
 // Vercel Serverless Function for GPS tracking
-import fs from 'fs';
-import path from 'path';
-
-const DATA_FILE = '/tmp/employees.json';
-
-function readEmployees() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const data = fs.readFileSync(DATA_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading employees file:', error);
-  }
-  return [];
-}
-
-function writeEmployees(employees) {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(employees, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error writing employees file:', error);
-    return false;
-  }
-}
+import { getEmployees, addOrUpdateEmployee, clearAllEmployees } from './data-store.js';
 
 export default function handler(req, res) {
   // CORS 헤더 설정
@@ -55,16 +30,7 @@ export default function handler(req, res) {
         timestamp: timestamp || new Date().toISOString()
       };
 
-      const employees = readEmployees();
-      const existingIndex = employees.findIndex(emp => emp.employeeId === employeeId);
-      
-      if (existingIndex !== -1) {
-        employees[existingIndex] = locationData;
-      } else {
-        employees.push(locationData);
-      }
-
-      writeEmployees(employees);
+      addOrUpdateEmployee(locationData);
       console.log('위치 업데이트:', locationData);
       
       return res.status(200).json({ 
@@ -83,7 +49,7 @@ export default function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const employees = readEmployees();
+      const employees = getEmployees();
       return res.status(200).json(employees);
     } catch (error) {
       console.error('GET 오류:', error);
@@ -96,7 +62,7 @@ export default function handler(req, res) {
 
   if (req.method === 'DELETE') {
     try {
-      writeEmployees([]);
+      clearAllEmployees();
       console.log('모든 직원 데이터 삭제됨');
       return res.status(200).json({ 
         success: true, 
